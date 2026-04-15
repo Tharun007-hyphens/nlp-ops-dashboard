@@ -1,6 +1,6 @@
 # cis6930fa24 -- Project1
 
-Name: Sai Sree Sadhan Polimera
+Name: Venkata Tharun Seemakurthi
 
 # Assignment Description 
 
