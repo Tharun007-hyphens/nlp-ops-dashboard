@@ -14,3 +14,5 @@ build/
 htmlcov/
 .idea/
 .vscode/
+dashboard/node_modules/
+dashboard/dist/

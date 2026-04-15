@@ -39,6 +39,21 @@ Install pytest testing framework using the command:
 
       pipenv install pytest 
 
+**Full project (CLI + API + tests):** From the repository root, install everything declared in the `Pipfile` / `Pipfile.lock` (spaCy, NLTK, FastAPI, Uvicorn, pytest, etc.):
+
+      pipenv install
+
+The `Pipfile` pins the `en_core_web_md` model wheel. If the model fails to load, run:
+
+      pipenv run python -m spacy download en_core_web_md
+
+### Dashboard (Node.js)
+
+The React UI lives in `dashboard/`. Install its dependencies once:
+
+      cd dashboard
+      npm install
+
 ## How to run
 To execute the project, navigate to the project directory and run the following commands:
 
@@ -49,6 +64,33 @@ To execute the project, navigate to the project directory and run the following 
    For instance (command used in my local):
 
          pipenv run python redactor.py --input 'testing_files/sample_file_1' --names --dates --phones --address --concept 'cricket' --output 'files/' --stats stderr
+
+## Web dashboard (React + FastAPI)
+
+The repository includes a **browser UI** (`dashboard/`) backed by a small **FastAPI** app (`api/app.py`) that calls the same `redactor.py` logic via `redact_string()`.
+
+### Run the API (terminal 1)
+
+From the project root (Python 3.11 + Pipenv):
+
+      pipenv run uvicorn api.app:app --reload --host 127.0.0.1 --port 8765
+
+- **`GET /api/health`** — quick health check.
+- **`POST /api/redact`** — JSON body: `text` (string), `flags` (`names`, `dates`, `phones`, `address`, `emails` booleans), optional `concept` (string). Returns `redacted_text`, `stats`, and `original_length`.
+
+If binding fails on Windows (`WinError 10013`), try another port (e.g. `8888`) and set the same URL in `dashboard/vite.config.js` under `server.proxy['/api'].target`.
+
+### Run the React app (terminal 2)
+
+      cd dashboard
+      npm run dev
+
+Open **http://localhost:5173**. Vite proxies `/api/*` to the backend URL in `vite.config.js` (default `http://127.0.0.1:8765`).
+
+### Production notes
+
+- **CORS:** `api/app.py` currently allows only local Vite preview origins. For a public frontend host, add your site origin to `allow_origins` or use a reverse proxy so the UI and API share one origin.
+- **Static build:** `npm run build` in `dashboard/` writes to `dashboard/dist/`. Serve that folder from any static host and point the UI at your deployed API URL (the dev proxy is not used in production).
 
 ## Output Scenario
 
@@ -209,6 +251,9 @@ command to run test cases:
                 Addresses: 1, 
                 Emails: 2, 
                 Concept: 2
+
+6) **redact_string(text, flags, concept=None)**  
+    Runs the same redaction pipeline as the CLI on a **single string**. Returns `(redacted_text, file_stats)` where `file_stats` matches the per-category counts used elsewhere. Used by **`api/app.py`** for the React dashboard (`POST /api/redact`).
   
 ## Example Usage to run commands
 - To get the output under the files directory, use the following command:

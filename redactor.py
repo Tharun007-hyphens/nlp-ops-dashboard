@@ -7,8 +7,19 @@ import nltk
 from pathlib import Path
 from nltk.corpus import wordnet
 
-# To downloaded the WordNet corpus for getting synonyms
-nltk.download('wordnet')
+_WORDNET_READY = False
+
+
+def _ensure_wordnet():
+    global _WORDNET_READY
+    if _WORDNET_READY:
+        return
+    try:
+        wordnet.synsets("example")
+    except LookupError:
+        nltk.download("wordnet", quiet=True)
+    _WORDNET_READY = True
+
 
 # Load the SpaCy model
 nlp = spacy.load("en_core_web_md")
@@ -91,7 +102,7 @@ def redactor_text(doc, flags, concept, file_stats):
             file_stats['names'] += 1  # Increment count for each name found in emails
     
     # Redact the entire email address
-    if flags.get('names', False):
+    if flags.get('names', False) or flags.get('emails', False):
         email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b'
         email_matches = re.findall(email_pattern, redacted_text)
         for match in email_matches:
@@ -104,6 +115,7 @@ def redactor_text(doc, flags, concept, file_stats):
     return redacted_text if redacted_text else ""  # Ensure the function always returns a string
 
 def redact_concept_sentences(redacted_text, concept, file_stats):
+    _ensure_wordnet()
     # Get synonyms and related terms for the concept
     synonyms = set()
     for syn in wordnet.synsets(concept):
@@ -155,6 +167,15 @@ def read_files(input_pattern, output_dir, flags, concept):
             censored_file.write(redacted_text)
         stats[file_path] = {'length': len(redacted_text), 'stats': file_stats}
     return stats
+
+
+def redact_string(text, flags, concept=None):
+    """Run redaction on a single string; returns (redacted_text, file_stats dict)."""
+    file_stats = {'names': 0, 'dates': 0, 'phones': 0, 'addresses': 0, 'emails': 0, 'concept': 0}
+    doc = nlp(text or "")
+    redacted_text = redactor_text(doc, flags, concept, file_stats)
+    return redacted_text, file_stats
+
 
 def print_stats(stats, output):
     for file, data in stats.items():
